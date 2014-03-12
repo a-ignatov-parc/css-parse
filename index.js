@@ -429,6 +429,61 @@ module.exports = function(css, options){
       rules: style
     });
   }
+  
+  /**
+   * Parse font-face.
+   */
+
+  function atfontface() {
+    var pos = position();
+    var m = match(/^@font-face */);
+    var re = /url\(['"]([^'"]+)['"]\)\s*(?:format\(['"]([^'"]+)['"]\))?/i;
+    var src = [];
+    var decls = [];
+    var srcList;
+
+    if (!m) return;
+
+    if (!open()) return error("@font-face missing '{'");
+
+    var name = match(/^font-family\s*:\s*['"]([^'"]+)['"];/);
+
+    if (!name) return error("@font-face missing 'font-family'");
+    decls.push({
+      type: 'declaration',
+      property: 'font-family',
+      value: trim(name[1])
+    })
+    whitespace();
+
+    while (srcList = match(/^src\s*:\s*([^;]+);/)) {
+      var val = trim(srcList[1]);
+      var set = val.split(',');
+
+      decls.push({
+        type: 'declaration',
+        property: 'src',
+        value: val
+      });
+
+      set.forEach(function(item) {
+        m = re.exec(item);
+        src.push({
+          url: trim(m[1]),
+          format: trim(m[2])
+        });
+      })
+      whitespace();
+    }
+
+    if (!close()) return error("@font-face missing '}'");
+
+    return pos({
+      type: 'fontface',
+      src: src,
+      declarations: decls
+    });
+  }
 
   /**
    * Parse import
@@ -480,7 +535,8 @@ module.exports = function(css, options){
       || atnamespace()
       || atdocument()
       || atpage()
-      || athost();
+      || athost()
+      || atfontface();
   }
 
   /**
